@@ -1,7 +1,8 @@
+import matplotlib.colors
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import numpy as np
+from evasion import *
 
 
 class Node:
@@ -20,33 +21,36 @@ class Node:
         return self.x == other.x and self.y == other.y
 
 
-class Sensor:
-    def __init__(self, start_x, start_y, end_x, end_y):
-        self.start_x = start_x
-        self.start_y = start_y
-        self.end_x = end_x
-        self.end_y = end_y
+def build_node_tree(sensors, period=8, grid_size=4):
+    """Build the tree of nodes based on the sensor locations."""
+    all_nodes = []
+    locs = coveredSpace(sensors, period)
 
-    def __repr__(self):
-        return "Sensor({}, {}, {}, {})".format(self.start_x, self.start_y, self.end_x, self.end_y)
+    for t in range(period):
+        grid = []
+        for x in range(grid_size):
+            for y in range(grid_size):
+                # Check if the node is in the sensor range
+                if [y, x] not in locs[t]:
+                    grid.append(Node(x, y, t))
+        # Add siblings to each node
+        for node in grid:
+            for other_node in grid:
+                if abs(node.x - other_node.x) <= 1 and abs(node.y - other_node.y) <= 1:
+                    node.siblings.append(other_node)
+        # Try to connect the nodes to the nodes at the previous time step
+        if t == 0:
+            all_nodes.append(grid)
+            continue
+        for node in grid:
+            for prev_node in all_nodes[t-1]:
+                if node.x == prev_node.x and node.y == prev_node.y:
+                    node.parent = prev_node
+                    prev_node.children.append(node)
+                    break
+        all_nodes.append(grid)
 
-
-def build_node_tree():
-    """
-    Build the tree of nodes based on the sensor locations.
-
-    TODO: Implement a function to build the tree of nodes based on the sensor locations.
-    """
-    pass
-
-
-def generate_configuration():
-    """
-    TODO: room generator
-    Generate a room with random sensor locations and movements, so that
-    the sensors cover the whole room in one period.
-    :return:
-    """
+    return all_nodes, locs
 
 
 def find_next_pos(pos, grid, t):
@@ -67,35 +71,36 @@ def find_next_pos(pos, grid, t):
             if neghb not in visited:
                 queue.append(neghb)
 
+    print("No path found at time {}".format(t))
     return None
 
 
-def visualize(sensor_locs, path):
+def visualize(sensor_locs, path, grid_size=(4, 4)):
     """
     Visualize the path of the intruder through the grid.
     """
     fig, ax = plt.subplots()
     ax.set_title("Evasion")
+    ax.set_aspect('equal')
 
-    graph = ax.scatter([], [])
+    data = np.zeros(grid_size)
+    cmap = matplotlib.colors.ListedColormap(['white', 'red', 'green'])
+    cax = ax.pcolor(data[::-1], cmap=cmap, edgecolors='k', linewidths=3)
 
-    def update(frame):
-        # Plot sensors
-        offsets = []
-        cols = []
-        for i in range(len(sensor_locs[frame])):
-            sensor = sensor_locs[frame][i]
-            offsets.append([sensor[1], sensor[0]])
-            cols.append('r')
-        offsets.append([path[frame].x, path[frame].y])
-        cols.append('b')
-        graph.set_offsets(offsets)
-        graph.set_facecolors(cols)
-        graph.set_sizes([100] * len(offsets))
-        return graph
+    def animate(i):
+        i = i % len(sensor_locs)
+        ax.clear()
+        ax.set_title(f"Evasion {i}/{len(sensor_locs)}")
+        new_data = np.zeros(grid_size)
+        for loc in sensor_locs[i]:
+            new_data[loc[0]][loc[1]] = 1
+        new_data[path[i].y][path[i].x] = 2
+        cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=3)
+        return cax,
 
-    ani = animation.FuncAnimation(fig, update, interval=1000)
+    anim = animation.FuncAnimation(fig, animate, frames=len(sensor_locs), interval=1000, blit=False)
     plt.show()
+
 
 def find_path(all_grid):
     """
@@ -126,82 +131,67 @@ if __name__ == "__main__":
     """
     First we must build the tree based on the inital setting of sensors.
     """
+    """
+    Coordinate system:
+    (0, 0) is the top left corner
+    (dim, dim) is the bottom right corner
+    """
 
-    loc_0 = [
+    # Basic Example 1
+    """
+    path = [
         [0, 0],
-        [0, 1],
         [1, 0],
-        [1, 1]
-    ]
-    loc_1 = [
-        [1, 0],
-        [1, 1],
-        [2, 0],
-        [2, 1]
-    ]
-    loc_2 = [
         [2, 0],
         [2, 1],
-        [3, 0],
-        [3, 1]
-    ]
-    loc_3 = [
-        [2, 1],
         [2, 2],
-        [3, 1],
-        [3, 2]
-    ]
-    loc_4 = [
-        [2, 2],
-        [2, 3],
-        [3, 2],
-        [3, 3]
-    ]
-    loc_5 = [
         [1, 2],
-        [1, 3],
-        [2, 2],
-        [2, 3]
-    ]
-    loc_6 = [
         [0, 2],
-        [0, 3],
-        [1, 2],
-        [1, 3]
+        [0, 1]
     ]
-    loc_7 = [
-        [0, 1],
-        [0, 2],
-        [1, 1],
-        [1, 2]
-    ]
+    sensor = Sensor((4, 4), path)
 
-    locs = [loc_0, loc_1, loc_2, loc_3, loc_4, loc_5, loc_6, loc_7]
-
-    all_nodes = []
-    for t in range(7):
-        grid = []
-        for x in range(4):
-            for y in range(4):
-                # Check if the node is in the sensor range
-                if [y, x] not in locs[t]:
-                    grid.append(Node(x, y, t))
-        # Add siblings to each node
-        for node in grid:
-            for other_node in grid:
-                if abs(node.x - other_node.x) <= 1 and abs(node.y - other_node.y) <= 1:
-                    node.siblings.append(other_node)
-        # Try to connect the nodes to the nodes at the previous time step
-        if t == 0:
-            all_nodes.append(grid)
-            continue
-        for node in grid:
-            for prev_node in all_nodes[t-1]:
-                if node.x == prev_node.x and node.y == prev_node.y:
-                    node.parent = prev_node
-                    prev_node.children.append(node)
-                    break
-        all_nodes.append(grid)
+    all_nodes, locs = build_node_tree([sensor], period=8, grid_size=4)
 
     node_path = find_path(all_nodes)
     visualize(locs, node_path)
+    """
+
+    # Example 2
+    dim = (8, 8)
+    endpoints = [[0, 0], [5, 0]]
+    start_pos = [0, 0]
+    start_dir = [1, 0]
+    sens_1 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[0, 1], [0, 6]]
+    start_pos = [0, 5]
+    start_dir = [0, 1]
+    sens_2 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[2, 2], [4, 2]]
+    start_pos = [4, 2]
+    start_dir = [-1, 0]
+    sens_3 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[2, 4], [4, 4]]
+    start_pos = [3, 4]
+    start_dir = [1, 0]
+    sens_4 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[2, 6], [6, 6]]
+    start_pos = [4, 6]
+    start_dir = [1, 0]
+    sens_5 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[6, 0], [6, 4]]
+    start_pos = [6, 3]
+    start_dir = [0, -1]
+    sens_6 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    sensors = [sens_1, sens_2, sens_3, sens_4, sens_5, sens_6]
+    all_nodes, locs = build_node_tree(sensors, period=40, grid_size=8)
+
+    node_path = find_path(all_nodes)
+    visualize(locs, node_path, grid_size=dim)
+
