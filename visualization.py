@@ -2,6 +2,9 @@ import matplotlib.colors
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
+from queue import PriorityQueue
+
 from evasion import *
 
 
@@ -19,6 +22,18 @@ class Node:
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
+
+    def __le__(self, other):
+        return (self.x, self.y) <= (other.x, other.y)
+
+    def __lt__(self, other):
+        return (self.x, self.y) < (other.x, other.y)
+
+    def l1(self, other):
+        return abs(self.x - other.x) + abs(self.y - other.y)
+
+    def l2(self, other):
+        return (self.x - other.x)**2 + (self.y - other.y)**2
 
 
 def build_node_tree(sensors, period=8, grid_size=4):
@@ -55,30 +70,81 @@ def build_node_tree(sensors, period=8, grid_size=4):
     return all_nodes, locs
 
 
-def find_next_pos(pos, grid, t):
-    """Find path between pos and any valid position in grid."""
-    # Check if the current position is valid
-    if pos in grid:
-        node = grid[grid.index(pos)]
-        return node
+def check_siblings(node, grid, visited, start_pos):
+    """Check if any sibling has a lower l1 distance to start_pos."""
+    for other_node in node.siblings:
+        #print(other_node, node, other_node.l2(start_pos), node.l2(start_pos))
+        if other_node in grid and other_node not in visited and \
+                other_node.l2(start_pos) < node.l2(start_pos):
+            return False
+    return True
 
-    # Use BFS to find a valid position
-    queue = [pos]
+def find_next_pos(pos, grid, t, start_pos=None):
+    """Find path between pos and any valid position in grid."""
+
+    # If no path to start position exists try to find a path to any valid position
+    queue = PriorityQueue()
+    queue.put((pos.l2(start_pos), pos))
     visited = []
-    while queue:
-        node = queue.pop(0)
+    while not queue.empty():
+        node = queue.get()[1]
         # If the node is valid intruder can remain at this position
+
         if node in grid:
-            # Get node at new time from grid
-            node = grid[grid.index(node)]
-            return node
+            # Build path from last node to start node
+            last_node = node
+            path = [node]
+            while node.parent is not None and check_siblings(node, grid, visited, start_pos):
+                node = node.parent
+                path.append(node)
+            last_node = grid[grid.index(last_node)]
+            return last_node, path[-2:0:-1]
+
         visited.append(node)
         for neghb in node.siblings:
             if neghb not in visited:
-                queue.append(neghb)
+                neghb.parent = node
+                queue.put((neghb.l2(start_pos), neghb))
 
     print("No path found at time {}".format(t))
+    return None, []
+
+
+def find_path(all_grid, debug=False):
+    """
+    Find the path of the intruder through the grid.
+    """
+    i = 0
+    while i < len(all_grid[0]):
+        pos = all_grid[0][i]
+        path = [pos]
+        if debug:
+            print("Time: {}, Position: {}".format(0, pos))
+            print("Path: {}".format(path))
+        for t in range(1, len(all_grid)):
+            # If the current position is still valid the intruder does not need to move
+            pos, new_path = find_next_pos(pos, all_grid[t], t - 1, start_pos=path[0])
+            if pos is None:
+                i += 1
+                break
+            path.extend(new_path)
+            path.append(pos)
+            if debug:
+                print("Time: {}, Position: {}".format(t, pos))
+                print("Path: {}".format(path))
+
+        # If the path is valid we can return it
+        if pos is not None:
+            # Check if there exists a path from last position to start position
+            pos, _ = find_next_pos(pos, all_grid[0], len(all_grid) - 1, start_pos=path[0])
+            if pos is not None:
+                path.append(pos)
+                return path
+            else:
+                i += 1
+                print(f"Path did not end at {path[0]}")
     return None
+
 
 
 def visualize(sensor_locs, path, grid_size=(4, 4)):
@@ -90,47 +156,61 @@ def visualize(sensor_locs, path, grid_size=(4, 4)):
     ax.set_aspect('equal')
 
     data = np.zeros(grid_size)
-    cmap = matplotlib.colors.ListedColormap(['white', 'red', 'green'])
-    cax = ax.pcolor(data[::-1], cmap=cmap, edgecolors='k', linewidths=3)
+    for ind in range(0, len(sensor_locs[0]), 4):
+        loc = sensor_locs[0][ind]
+        data[loc[0]][loc[1]] = ind + 2
+        loc = sensor_locs[0][ind + 1]
+        data[loc[0]][loc[1]] = ind + 2
+        loc = sensor_locs[0][ind + 2]
+        data[loc[0]][loc[1]] = ind + 2
+        loc = sensor_locs[0][ind + 3]
+        data[loc[0]][loc[1]] = ind + 2
+    data[path[0].y][path[0].x] = 1
+
+    # Create a custom colormap for all sensors
+    colors = ['white', (0, 1, 0)]
+    for i in range(0, len(sensor_locs)):
+        # Generate random red color with different shades
+        color = (1, np.random.rand() * 0.8, np.random.rand() * 0.8)
+        colors.append(color)
+
+    cmap = matplotlib.colors.ListedColormap(colors)
+    cax = ax.pcolor(data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
+
+    time = 0
+    frame = 0
 
     def animate(i):
-        i = i % len(sensor_locs)
+        nonlocal time, frame
         ax.clear()
-        ax.set_title(f"Evasion {i}/{len(sensor_locs)}")
+        ax.set_title(f"Evasion {time}/{len(sensor_locs)}")
         new_data = np.zeros(grid_size)
-        for loc in sensor_locs[i]:
-            new_data[loc[0]][loc[1]] = 1
-        new_data[path[i].y][path[i].x] = 2
-        cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=3)
+
+        time = time % len(sensor_locs)
+        for ind in range(0, len(sensor_locs[time]), 4):
+            loc = sensor_locs[time][ind]
+            new_data[loc[0]][loc[1]] = ind + 2
+            loc = sensor_locs[time][ind + 1]
+            new_data[loc[0]][loc[1]] = ind + 2
+            loc = sensor_locs[time][ind + 2]
+            new_data[loc[0]][loc[1]] = ind + 2
+            loc = sensor_locs[time][ind + 3]
+            new_data[loc[0]][loc[1]] = ind + 2
+
+        if path[frame].time == time:
+            new_data[path[frame].y][path[frame].x] = 1
+            if path[(frame + 1) % len(path)].time != time:
+                time += 1
+        else:
+            new_data[path[frame].y][path[frame].x] = 1
+
+        cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
+        frame = (frame + 1) % len(path)
         return cax,
 
-    anim = animation.FuncAnimation(fig, animate, frames=len(sensor_locs), interval=1000, blit=False)
-    plt.show()
-
-
-def find_path(all_grid):
-    """
-    Find the path of the intruder through the grid.
-    """
-    i = 0
-    while i < len(all_grid[0]):
-        pos = all_grid[0][i]
-        path = [pos]
-        for t in range(1, len(all_grid)):
-            # If the current position is still valid the intruder does not need to move
-            pos = find_next_pos(pos, all_grid[t], t - 1)
-            if pos is None:
-                i += 1
-                break
-            path.append(pos)
-        # If the path is valid we can return it
-        if pos is not None:
-            # Check if there exists a path from last position to start position
-            pos = find_next_pos(pos, all_grid[0], len(all_grid) - 1)
-            if pos is not None:
-                path.append(pos)
-                return path
-    return None
+    anim = animation.FuncAnimation(fig, animate, frames=len(path), interval=1000, blit=False)
+    #plt.show()
+    anim.save('evasion.gif', writer='imagemagick', fps=1)
 
 
 if __name__ == "__main__":
@@ -197,5 +277,8 @@ if __name__ == "__main__":
     all_nodes, locs = build_node_tree(sensors, period=40, grid_size=8)
 
     node_path = find_path(all_nodes)
+    if node_path is None:
+        print("No path found")
+        exit(-1)
     visualize(locs, node_path, grid_size=dim)
 
