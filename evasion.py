@@ -109,6 +109,7 @@ class SensorsSpace:
         self.sensorStartStopList = sensorStartStopList  # [[[startX,startY],[stopX,*]], [[*,*],[*,*]], [[*,*],[*,*]] ]
         self.spaceDim = spaceDim  # [*,*]
         self.sensors = []
+        self.timePeriod = 0
         self.getCommonTimePeriod()
 
     def getCommonTimePeriod(self):
