@@ -1,11 +1,12 @@
 import matplotlib.colors
-import numpy as np
+from queue import PriorityQueue
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-from queue import PriorityQueue
-
 from evasion import *
+
+import matplotlib
+matplotlib.use("TkAgg")
 
 
 class Node:
@@ -55,16 +56,6 @@ def build_node_tree(sensors, period=8, grid_size=4):
                 if node != other_node and \
                    abs(node.x - other_node.x) + abs(node.y - other_node.y) == 1:
                     node.siblings.append(other_node)
-        # # Try to connect the nodes to the nodes at the previous time step
-        # if t == 0:
-        #     all_nodes.append(grid)
-        #     continue
-        # for node in grid:
-        #     for prev_node in all_nodes[t-1]:
-        #         if node.x == prev_node.x and node.y == prev_node.y:
-        #             node.parent = prev_node
-        #             prev_node.children.append(node)
-        #             break
         all_nodes.append(grid)
 
     return all_nodes, locs
@@ -73,34 +64,32 @@ def build_node_tree(sensors, period=8, grid_size=4):
 def check_siblings(node, grid, visited, start_pos):
     """Check if any sibling has a lower l1 distance to start_pos."""
     for other_node in node.siblings:
-        #print(other_node, node, other_node.l2(start_pos), node.l2(start_pos))
-        if other_node in grid and other_node not in visited and \
-                other_node.l2(start_pos) < node.l2(start_pos):
+        if other_node in grid and \
+                other_node not in visited \
+                and other_node.l2(start_pos) < node.l2(start_pos):
             return False
     return True
 
+
 def find_next_pos(pos, grid, t, start_pos=None):
     """Find path between pos and any valid position in grid."""
-
-    # If no path to start position exists try to find a path to any valid position
     queue = PriorityQueue()
+    pos.parent = None
     queue.put((pos.l2(start_pos), pos))
     visited = []
     while not queue.empty():
         node = queue.get()[1]
+        visited.append(node)
         # If the node is valid intruder can remain at this position
-
-        if node in grid:
+        if node in grid and check_siblings(node, grid, visited, start_pos):
             # Build path from last node to start node
             last_node = node
             path = [node]
-            while node.parent is not None and check_siblings(node, grid, visited, start_pos):
+            while node.parent is not None:
                 node = node.parent
                 path.append(node)
             last_node = grid[grid.index(last_node)]
             return last_node, path[-2:0:-1]
-
-        visited.append(node)
         for neghb in node.siblings:
             if neghb not in visited:
                 neghb.parent = node
@@ -125,6 +114,7 @@ def find_path(all_grid, debug=False):
             # If the current position is still valid the intruder does not need to move
             pos, new_path = find_next_pos(pos, all_grid[t], t - 1, start_pos=path[0])
             if pos is None:
+                print("Path broken")
                 i += 1
                 break
             path.extend(new_path)
@@ -213,6 +203,62 @@ def visualize(sensor_locs, path, grid_size=(4, 4)):
     anim.save('evasion.gif', writer='imagemagick', fps=1)
 
 
+def visualize_sensors(locs, grid_size):
+    """
+    Visualize only the sensor movements.
+    """
+    fig, ax = plt.subplots()
+    ax.set_title("Evasion")
+    ax.set_aspect('equal')
+
+    data = np.zeros(grid_size)
+    for ind in range(0, len(locs[0]), 4):
+        loc = locs[0][ind]
+        data[loc[0]][loc[1]] = ind + 2
+        loc = locs[0][ind + 1]
+        data[loc[0]][loc[1]] = ind + 2
+        loc = locs[0][ind + 2]
+        data[loc[0]][loc[1]] = ind + 2
+        loc = locs[0][ind + 3]
+        data[loc[0]][loc[1]] = ind + 2
+
+    # Create a custom colormap for all sensors
+    colors = ['white']
+    for i in range(0, len(locs)):
+        # Generate random red color with different shades
+        color = (1, np.random.rand() * 0.8, np.random.rand() * 0.8)
+        colors.append(color)
+
+    cmap = matplotlib.colors.ListedColormap(colors)
+    cax = ax.pcolor(data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
+
+    time = 0
+    def animate(i):
+        nonlocal time
+        ax.clear()
+        ax.set_title(f"Evasion {time}/{len(locs)}")
+        new_data = np.zeros(grid_size)
+
+        time = time % len(locs)
+        for ind in range(0, len(locs[time]), 4):
+            loc = locs[time][ind]
+            new_data[loc[0]][loc[1]] = ind + 2
+            loc = locs[time][ind + 1]
+            new_data[loc[0]][loc[1]] = ind + 2
+            loc = locs[time][ind + 2]
+            new_data[loc[0]][loc[1]] = ind + 2
+            loc = locs[time][ind + 3]
+            new_data[loc[0]][loc[1]] = ind + 2
+
+        cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
+        time += 1
+        return cax,
+
+    anim = animation.FuncAnimation(fig, animate, frames=len(locs), interval=1000, blit=False)
+    #plt.show()
+    anim.save('evasion.gif', writer='imagemagick', fps=1)
+
+
 if __name__ == "__main__":
     """
     First we must build the tree based on the inital setting of sensors.
@@ -274,7 +320,10 @@ if __name__ == "__main__":
     sens_6 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
 
     sensors = [sens_1, sens_2, sens_3, sens_4, sens_5, sens_6]
-    all_nodes, locs = build_node_tree(sensors, period=40, grid_size=8)
+
+    periods = [sensor.timePeriod for sensor in sensors]
+    period = smallest_common_multiple([sensor.timePeriod for sensor in sensors])
+    all_nodes, locs = build_node_tree(sensors, period=period, grid_size=8)
 
     node_path = find_path(all_nodes)
     if node_path is None:

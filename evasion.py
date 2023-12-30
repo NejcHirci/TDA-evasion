@@ -20,6 +20,19 @@ class Sensor:
             space[t][y + 1][x + 1] = 1
         return space
 
+    def getSensorAreaWithoutTime(self):
+        """Returns coverage of sensor in spaceDim."""
+        n_frames = len(self.sensorPath)
+        space = np.zeros(self.spaceDim)
+
+        for t in range(n_frames):
+            y, x = self.sensorPath[t]
+            space[y][x] = 1
+            space[y][x + 1] = 1
+            space[y + 1][x] = 1
+            space[y + 1][x + 1] = 1
+        return space
+
     def getCorners(self, t):
         t = t % self.timePeriod
         return [
