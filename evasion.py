@@ -23,14 +23,14 @@ class Sensor:
     def getSensorAreaWithoutTime(self):
         """Returns coverage of sensor in spaceDim."""
         n_frames = len(self.sensorPath)
-        space = np.zeros(self.spaceDim)
+        space = np.full(self.spaceDim, False)
 
         for t in range(n_frames):
             y, x = self.sensorPath[t]
-            space[y][x] = 1
-            space[y][x + 1] = 1
-            space[y + 1][x] = 1
-            space[y + 1][x + 1] = 1
+            space[y][x] = True
+            space[y][x + 1] = True
+            space[y + 1][x] = True
+            space[y + 1][x + 1] = True
         return space
 
     def getCorners(self, t):
@@ -87,12 +87,8 @@ class DirectionalSensor(Sensor):
         pos = self.startPos
         path = [pos.tolist()]
 
-        if abs(dir[0]) == 1:
-            self.timePeriod = 2 * np.abs(self.startPos[0] - self.endpoints[0][0]) + \
-                2 * np.abs(self.startPos[0] - self.endpoints[1][0])
-        elif abs(dir[1]) == 1:
-            self.timePeriod = 2 * np.abs(self.startPos[1] - self.endpoints[0][1]) + \
-                2 * np.abs(self.startPos[1] - self.endpoints[1][1])
+        self.timePeriod = 2 * np.max(np.abs(self.endpoints[0] - self.endpoints[1]))
+
 
         for t in range(1, self.timePeriod):
             pos += dir
@@ -101,6 +97,9 @@ class DirectionalSensor(Sensor):
             path.append(pos.tolist())
 
         return np.array(path)
+
+    def __repr__(self):
+        return "Sensor({}, {}, {})".format(self.endpoints, self.startPos, self.startDir)
 
 
 class SensorsSpace:

@@ -1,13 +1,10 @@
 import gudhi as gd  
-import pickle as pickle
-from pylab import *
-from sklearn.neighbors import KernelDensity
-import seaborn as sns
-import math
 import numpy as np
 from skimage import measure
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+from plotting import *
 
 # Plotting stuff
 
@@ -342,6 +339,7 @@ if __name__ == "__main__":
     pathId = 1
     if len(paths) > 0:
         specialCoords = paths[pathId]
+        visualize_space(space, specialCoords)
 
     # Prikaz poti
     # Prvi plot - najdena pot
@@ -351,7 +349,6 @@ if __name__ == "__main__":
     ax = fig.add_subplot(111, projection='3d')
     spaceShape = np.shape(space)
     # nariši najdeno pot, (Če je več poti lahko prikaže tudi dele drugih poti)
-    # če je več poti mogoče sploh ne najde cele poti...idk
     if len(paths) > 0:
         for coord in specialCoords:
             draw_cube(ax, coord, size = 1)

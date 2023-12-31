@@ -1,12 +1,8 @@
-import matplotlib.colors
 from queue import PriorityQueue
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+
+from plotting import visualize
 
 from evasion import *
-
-import matplotlib
-matplotlib.use("TkAgg")
 
 
 class Node:
@@ -127,136 +123,13 @@ def find_path(all_grid, debug=False):
         if pos is not None:
             # Check if there exists a path from last position to start position
             pos, _ = find_next_pos(pos, all_grid[0], len(all_grid) - 1, start_pos=path[0])
-            if pos is not None:
+            if pos is not None and pos == path[0]:
                 path.append(pos)
                 return path
             else:
                 i += 1
                 print(f"Path did not end at {path[0]}")
     return None
-
-
-
-def visualize(sensor_locs, path, grid_size=(4, 4)):
-    """
-    Visualize the path of the intruder through the grid.
-    """
-    fig, ax = plt.subplots()
-    ax.set_title("Evasion")
-    ax.set_aspect('equal')
-
-    data = np.zeros(grid_size)
-    for ind in range(0, len(sensor_locs[0]), 4):
-        loc = sensor_locs[0][ind]
-        data[loc[0]][loc[1]] = ind + 2
-        loc = sensor_locs[0][ind + 1]
-        data[loc[0]][loc[1]] = ind + 2
-        loc = sensor_locs[0][ind + 2]
-        data[loc[0]][loc[1]] = ind + 2
-        loc = sensor_locs[0][ind + 3]
-        data[loc[0]][loc[1]] = ind + 2
-    data[path[0].y][path[0].x] = 1
-
-    # Create a custom colormap for all sensors
-    colors = ['white', (0, 1, 0)]
-    for i in range(0, len(sensor_locs)):
-        # Generate random red color with different shades
-        color = (1, np.random.rand() * 0.8, np.random.rand() * 0.8)
-        colors.append(color)
-
-    cmap = matplotlib.colors.ListedColormap(colors)
-    cax = ax.pcolor(data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
-
-    time = 0
-    frame = 0
-
-    def animate(i):
-        nonlocal time, frame
-        ax.clear()
-        ax.set_title(f"Evasion {time}/{len(sensor_locs)}")
-        new_data = np.zeros(grid_size)
-
-        time = time % len(sensor_locs)
-        for ind in range(0, len(sensor_locs[time]), 4):
-            loc = sensor_locs[time][ind]
-            new_data[loc[0]][loc[1]] = ind + 2
-            loc = sensor_locs[time][ind + 1]
-            new_data[loc[0]][loc[1]] = ind + 2
-            loc = sensor_locs[time][ind + 2]
-            new_data[loc[0]][loc[1]] = ind + 2
-            loc = sensor_locs[time][ind + 3]
-            new_data[loc[0]][loc[1]] = ind + 2
-
-        if path[frame].time == time:
-            new_data[path[frame].y][path[frame].x] = 1
-            if path[(frame + 1) % len(path)].time != time:
-                time += 1
-        else:
-            new_data[path[frame].y][path[frame].x] = 1
-
-        cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
-        frame = (frame + 1) % len(path)
-        return cax,
-
-    anim = animation.FuncAnimation(fig, animate, frames=len(path), interval=1000, blit=False)
-    #plt.show()
-    anim.save('evasion.gif', writer='imagemagick', fps=1)
-
-
-def visualize_sensors(locs, grid_size):
-    """
-    Visualize only the sensor movements.
-    """
-    fig, ax = plt.subplots()
-    ax.set_title("Evasion")
-    ax.set_aspect('equal')
-
-    data = np.zeros(grid_size)
-    for ind in range(0, len(locs[0]), 4):
-        loc = locs[0][ind]
-        data[loc[0]][loc[1]] = ind + 2
-        loc = locs[0][ind + 1]
-        data[loc[0]][loc[1]] = ind + 2
-        loc = locs[0][ind + 2]
-        data[loc[0]][loc[1]] = ind + 2
-        loc = locs[0][ind + 3]
-        data[loc[0]][loc[1]] = ind + 2
-
-    # Create a custom colormap for all sensors
-    colors = ['white']
-    for i in range(0, len(locs)):
-        # Generate random red color with different shades
-        color = (1, np.random.rand() * 0.8, np.random.rand() * 0.8)
-        colors.append(color)
-
-    cmap = matplotlib.colors.ListedColormap(colors)
-    cax = ax.pcolor(data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
-
-    time = 0
-    def animate(i):
-        nonlocal time
-        ax.clear()
-        ax.set_title(f"Evasion {time}/{len(locs)}")
-        new_data = np.zeros(grid_size)
-
-        time = time % len(locs)
-        for ind in range(0, len(locs[time]), 4):
-            loc = locs[time][ind]
-            new_data[loc[0]][loc[1]] = ind + 2
-            loc = locs[time][ind + 1]
-            new_data[loc[0]][loc[1]] = ind + 2
-            loc = locs[time][ind + 2]
-            new_data[loc[0]][loc[1]] = ind + 2
-            loc = locs[time][ind + 3]
-            new_data[loc[0]][loc[1]] = ind + 2
-
-        cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
-        time += 1
-        return cax,
-
-    anim = animation.FuncAnimation(fig, animate, frames=len(locs), interval=1000, blit=False)
-    #plt.show()
-    anim.save('evasion.gif', writer='imagemagick', fps=1)
 
 
 if __name__ == "__main__":
@@ -329,5 +202,7 @@ if __name__ == "__main__":
     if node_path is None:
         print("No path found")
         exit(-1)
+
+    path_list = [(node.time, node.x, node.y) for node in node_path]
     visualize(locs, node_path, grid_size=dim)
 
