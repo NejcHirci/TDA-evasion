@@ -200,6 +200,7 @@ def findAllPaths(space):
     Finds all paths in space. You know.. creates islands removes islands checks if island was part of path, permutate through
     all islands and finds all paths... that kind of shjiet... Also ignores time traveling paths...hopefully....???
     """
+    spaceShape = np.shape(space)
 
     # Finds all important islands
     newSpace, t_inf = giveSpaceNoTimeDirection(space)
@@ -258,7 +259,73 @@ def findAllPaths(space):
         print("Just time traveling, nothing to see here...???")
     return cubePathsList
 
-def narrowPaths(space):
+
+def findOnePath(space):
+    """
+    Finds all paths in space. You know.. creates islands removes islands checks if island was part of path, permutate through
+    all islands and finds all paths... that kind of shjiet... Also ignores time traveling paths...hopefully....???
+    """
+    spaceShape = np.shape(space)
+
+    # Finds all important islands
+    newSpace, t_inf = giveSpaceNoTimeDirection(space)
+    modulatedSpace = newSpace.copy()
+    labeled_matrix_hist = []
+    allImportantLs = []
+    for tt in range(0, spaceShape[0]):
+        labeled_matrix, num_labels = find_islands(~space[tt])
+        labeled_matrix_hist.append(labeled_matrix)
+        lls = np.array([i for i in range(1, num_labels+1)])
+        importantLs = []
+        for ord in range(num_labels):
+            modulatedSpace = newSpace.copy()
+            for l in np.append(lls[ord:], lls[:ord]):
+                modulatedSpace[tt][labeled_matrix == l] = 1
+                path = doesPathExists(modulatedSpace, t_inf)
+                if not path:
+                    modulatedSpace[tt][labeled_matrix == l] = 0
+                    if l not in importantLs:
+                        importantLs.append(l)
+        allImportantLs.append(importantLs)
+
+
+    # Island permutation
+    maxVrednosti = [len(allImportantLs[i]) for i in range(spaceShape[0])]
+    stevec = [0 for i in range(spaceShape[0])]
+    paths = []
+    while len(paths) == 0:
+        modulatedSpace = newSpace.copy()
+        for t in range(spaceShape[0]):
+            modulatedSpace[t][labeled_matrix_hist[t] != allImportantLs[t][stevec[t]]] = 1
+        path = doesPathExists(modulatedSpace, t_inf)
+        if path:
+            paths.append(stevec.copy())
+        stevec[-1] += 1
+        for s in range(spaceShape[0] - 1, 0, -1):
+            if stevec[s] == maxVrednosti[s]:
+                stevec[s] = 0
+                stevec[s-1] += 1
+        if stevec[0] == maxVrednosti[0]:
+            break
+
+    # convert list of island combinations to cube meshes
+    cubePathsList = []
+    for p in range(len(paths)):
+        cubeList = np.empty((0,3))
+        for t2 in range(len(paths[p])):
+            lmh = np.ravel(labeled_matrix_hist[t2])
+            ids = np.where(lmh == (allImportantLs[t2][paths[p][t2]]))[0]
+            ycoords = ids//spaceShape[2]
+            xcoords = ids%spaceShape[2]
+            tcoords = np.ones(len(xcoords))*t2
+            cubeList = np.append(cubeList, np.array([tcoords, ycoords, xcoords]).T, axis = 0)
+        cubePathsList.append(cubeList)
+    if len(cubePathsList) == 0:
+        print("Just time traveling, nothing to see here...???")
+    return cubePathsList
+
+
+def narrowPaths(space, onePath=False):
     """
     Combines functions findAllPaths and getAllIds4.
     From findAllPaths gets all paths (that are pretty shit) and reduces them to 1D tube nice paths with getAllIds4.
@@ -270,16 +337,22 @@ def narrowPaths(space):
     if not path:
         print("No path")
         return []
-    cubePathsList = findAllPaths(space)
-    narrowPaths = []
+
+    if onePath:
+        cubePathsList = findOnePath(space)
+    else:
+        cubePathsList = findAllPaths(space)
+
+    paths = []
     for path in range(len(cubePathsList)):
         space = np.ones((spaceShape), dtype = bool)
         for cube in cubePathsList[path]:
             
             space[int(cube[0]), int(cube[1]), int(cube[2])] = 0
         ids, specialCoords = getAllIds4(space, True)
-        narrowPaths.append(specialCoords)
-    return narrowPaths
+        paths.append(specialCoords)
+
+    return paths
 
 
 if __name__ == "__main__":

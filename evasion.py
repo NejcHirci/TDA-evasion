@@ -175,6 +175,16 @@ def coveredSpace(sensors, period):
     return space
 
 
+def constructSpace(sensors, period, dim=8):
+    space = np.ones((period, dim, dim), dtype=bool)
+    for t in range(period):
+        for sensor in sensors:
+            locs = sensor.getCorners(t)
+            for loc in locs:
+                space[t][loc[0]][loc[1]] = 0
+    return space
+
+
 if __name__ == "__main__":
     print("Testing")
     endpoints = [[6, 0], [6, 4]]

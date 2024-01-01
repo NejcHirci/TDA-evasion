@@ -9,18 +9,38 @@ import matplotlib
 matplotlib.use("TkAgg")
 
 
-def visualize(sensor_locs, path, grid_size=(4, 4)):
+def sort_path(path, time_dim):
+    """Sorts the path according to time, x, y."""
+    new_path = []
+    for t in range(time_dim):
+        p = [p for p in path if p[0] == t]
+        if t == 0:
+            p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
+        else:
+            last_pos = new_path[-1]
+            # Check if last position is highest or lowest in new path
+            if last_pos[1] >= p[0][1] and last_pos[2] >= p[0][2]:
+                p = sorted(p, key=lambda x: (x[0], -x[1], -x[2]))
+            else:
+                p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
+        new_path.extend(p)
+    return new_path
+
+
+def visualize(sensor_locs, path, grid_size=4):
     """
     Visualize the path of the intruder through the grid.
     path: list of tuples (time, x, y)
     sensor_locs: list of lists of tuples (x, y) for every time step
     path: list of tuples (time, x, y)
     """
+    path = sort_path(path, len(sensor_locs))
+
     fig, ax = plt.subplots(dpi=300)
     ax.set_title("Evasion")
     ax.set_aspect('equal')
 
-    data = np.zeros(grid_size)
+    data = np.zeros((grid_size, grid_size))
     for ind in range(0, len(sensor_locs[0]), 4):
         loc = sensor_locs[0][ind]
         data[loc[0]][loc[1]] = ind + 2
@@ -77,7 +97,7 @@ def visualize(sensor_locs, path, grid_size=(4, 4)):
     anim.save('evasion.gif', writer='imagemagick', fps=1)
 
 
-def visualize_sensors(sensors, period, grid_size):
+def visualize_sensors(sensors, period, grid_size=4):
     """
     Visualize only the sensor movements.
     sensors: list of sensors
@@ -138,22 +158,7 @@ def visualize_space(space, path):
     """
 
     # Sort the path appropriately
-    new_path = []
-    for t in range(space.shape[0]):
-        p = [p for p in path if p[0] == t]
-        if t == 0:
-            p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
-        else:
-            last_pos = new_path[-1]
-            # Check if last position is highest or lowest in new path
-            if last_pos[1] >= p[0][1] and last_pos[2] >= p[0][2]:
-                p = sorted(p, key=lambda x: (x[0], -x[1], -x[2]))
-            else:
-                p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
-        new_path.extend(p)
-
-    path = new_path
-    print(path)
+    path = sort_path(path, space.shape[0])
     space = space.astype(int)
 
     fig, ax = plt.subplots(dpi=300)
@@ -190,6 +195,4 @@ def visualize_space(space, path):
     anim = animation.FuncAnimation(fig, animate, frames=len(path), interval=1000, blit=False)
     plt.show()
     # anim.save('evasion.gif', writer='imagemagick', fps=1)
-
-
 
