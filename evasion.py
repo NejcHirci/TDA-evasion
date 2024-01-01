@@ -178,10 +178,10 @@ def coveredSpace(sensors, period):
 def constructSpace(sensors, period, dim=8):
     space = np.ones((period, dim, dim), dtype=bool)
     for t in range(period):
-        for sensor in sensors:
-            locs = sensor.getCorners(t)
+        for s in sensors:
+            locs = s.getCorners(t)
             for loc in locs:
-                space[t][loc[0]][loc[1]] = 0
+                space[t][loc[0]][loc[1]] = False
     return space
 
 

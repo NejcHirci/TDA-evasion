@@ -158,7 +158,10 @@ def visualize_space(space, path):
     """
 
     # Sort the path appropriately
-    path = sort_path(path, space.shape[0])
+    frameNum = space.shape[0]
+    if path is not None:
+        path = sort_path(path, space.shape[0])
+        frameNum = len(path)
     space = space.astype(int)
 
     fig, ax = plt.subplots(dpi=300)
@@ -166,13 +169,15 @@ def visualize_space(space, path):
     ax.set_aspect('equal')
 
     # Create a custom colormap for all sensors
-    colors = ['white', 'red', 'green']
+    colors = ['red', 'white', 'green']
 
     cmap = matplotlib.colors.ListedColormap(colors)
     cax = ax.pcolor(space[0], cmap=cmap, edgecolors='k', linewidths=1)
 
     time = 0
     frame = 0
+
+    print(space)
 
     def animate(i):
         nonlocal time, frame
@@ -181,18 +186,21 @@ def visualize_space(space, path):
         time = time % space.shape[0]
         new_data = np.array(space[time])
 
-        if path[frame][0] == time:
-            new_data[path[frame][1]][path[frame][2]] = 2
-            if path[(frame + 1) % len(path)][0] != time:
-                time += 1
+        if path is not None:
+            if path[frame][0] == time:
+                new_data[path[frame][1]][path[frame][2]] = 2
+                if path[(frame + 1) % len(path)][0] != time:
+                    time += 1
+            else:
+                new_data[path[frame].y][path[frame].x] = 2
         else:
-            new_data[path[frame].y][path[frame].x] = 2
+            time += 1
 
         cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
-        frame = (frame + 1) % len(path)
+        frame = (frame + 1) % frameNum
         return cax,
 
-    anim = animation.FuncAnimation(fig, animate, frames=len(path), interval=1000, blit=False)
+    anim = animation.FuncAnimation(fig, animate, frames=frameNum, interval=1000, blit=False)
     plt.show()
-    # anim.save('evasion.gif', writer='imagemagick', fps=1)
+    anim.save('what.gif', writer='imagemagick', fps=1)
 
