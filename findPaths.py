@@ -415,12 +415,14 @@ class Node:
         self.children = []
 
 def getStartingNodes(connections):
+    """Groups in first slice are starting nodes"""
     startingNodes = []
     for c in connections[0]:
         startingNodes.append(Node(0, c[0]))
     return startingNodes
 
 def giveNodeChildren(node, connections):
+    """Creates node tree from first node"""
     if node.time == len(connections):
         return 
     slice = connections[node.time]
@@ -449,23 +451,30 @@ def getPath(node, id_start, t_stop):
 
 def findAllPaths2(space, onePath = True):
     spaceShape = np.shape(space)
+    # We search for all possible connections between two time slices.
+    # Two groups are connected when they cover eachother
     allConnections, labeled_matrix_hist = findAllConnections(space)
 
     n_slices = len(labeled_matrix_hist)
+    # now we just find path that comes to the same node id
+    # first we build node tree. Every node (group) has children(connected groups)
     startingNodes = getStartingNodes(allConnections)
     for sn in startingNodes:
         giveNodeChildren(sn, allConnections)
     paths = []
     t_stop = len(allConnections)
     for node0 in startingNodes:
+        # recursion go brrrrr
         nekej = getPath(node0, node0.id, t_stop)
         if nekej == 0:
             print("Time traveling")
             continue
         paths.append(nekej)
+        # when we find first path end 
         if onePath:
             break
     
+    # same as before, we get path cube coordinates
     cubePathsList = []
     for p in range(len(paths)):
         cubeList = np.empty((0,3))
