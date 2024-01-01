@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from plotting import *
-
 # Plotting stuff
 
 # function to get solid cube coordinates
@@ -78,6 +77,30 @@ def find_islands(matrix):
     """
     labeled_matrix, num_labels = measure.label(matrix, connectivity=1, return_num=True)
     return labeled_matrix, num_labels
+
+def labelIslands(space):
+     # Finds all important islands
+    spaceShape = np.shape(space)
+    newSpace, t_inf = giveSpaceNoTimeDirection(space)
+    modulatedSpace = newSpace.copy()
+    labeled_matrix_hist = []
+    allImportantLs = []
+    for tt in range(0, spaceShape[0]):
+        labeled_matrix, num_labels = find_islands(~space[tt])
+        labeled_matrix_hist.append(labeled_matrix)
+        lls = np.array([i for i in range(1, num_labels+1)])
+        importantLs = []
+        for ord in range(num_labels):
+            modulatedSpace = newSpace.copy()
+            for l in np.append(lls[ord:], lls[:ord]):
+                modulatedSpace[tt][labeled_matrix == l] = 1
+                path = doesPathExists(modulatedSpace, t_inf)
+                if not path:
+                    modulatedSpace[tt][labeled_matrix == l] = 0
+                    if l not in importantLs:
+                        importantLs.append(l)
+        allImportantLs.append(importantLs)
+    return labeled_matrix_hist, allImportantLs
 
 def giveSpaceNoTimeDirection(space):
     """
@@ -167,9 +190,11 @@ def getAllIds4(space, rand = False):
     spaceShape = np.shape(space)
     ids = []
     coords = []
-    newSpace, tmax1, tmax2, t_inf = giveSpaceTimeLastSlice(space)
-    listOfCubeIds, listOfCubeCoords = computeIdOfFinalCubeInLoop(newSpace, tmax1, tmax2, t_inf)
-    if len(listOfCubeIds) == 0:
+    # newSpace, tmax1, tmax2, t_inf = giveSpaceTimeLastSlice(space)
+    # listOfCubeIds, listOfCubeCoords = computeIdOfFinalCubeInLoop(newSpace, tmax1, tmax2, t_inf)
+    newSpace, t_inf = giveSpaceNoTimeDirection(space)
+    exists = doesPathExists(newSpace, t_inf)
+    if not exists:
         return np.array(ids), np.array(coords)
     spaceModulated = space.copy()
     idCount = 0
@@ -185,9 +210,9 @@ def getAllIds4(space, rand = False):
                 if spaceModulated[t, y, x] == 1:
                     continue
                 spaceModulated[t, y, x] = 1
-                newSpace, tmax1, tmax2, t_inf = giveSpaceTimeLastSlice(spaceModulated, t, y, x)
-                listOfCubeIds, listOfCubeCoords = computeIdOfFinalCubeInLoop(newSpace, tmax1, tmax2, t_inf)
-                if len(listOfCubeIds) == 0:
+                newSpace, t_inf = giveSpaceNoTimeDirection(spaceModulated)
+                exists = doesPathExists(newSpace, t_inf)
+                if not exists:
                     ids.append(idCount)
                     coords.append([t, y, x])
                     spaceModulated[t, y, x] = 0
@@ -325,7 +350,7 @@ def findOnePath(space):
     return cubePathsList
 
 
-def narrowPaths(space, onePath=False):
+def narrowPaths(space, onePath = True):
     """
     Combines functions findAllPaths and getAllIds4.
     From findAllPaths gets all paths (that are pretty shit) and reduces them to 1D tube nice paths with getAllIds4.
@@ -337,22 +362,123 @@ def narrowPaths(space, onePath=False):
     if not path:
         print("No path")
         return []
-
-    if onePath:
-        cubePathsList = findOnePath(space)
-    else:
-        cubePathsList = findAllPaths(space)
-
-    paths = []
+    # cubePathsList = findAllPaths(space)
+    cubePathsList = findAllPaths2(space, onePath)
+    narrowPaths = []
     for path in range(len(cubePathsList)):
         space = np.ones((spaceShape), dtype = bool)
         for cube in cubePathsList[path]:
             
             space[int(cube[0]), int(cube[1]), int(cube[2])] = 0
         ids, specialCoords = getAllIds4(space, True)
-        paths.append(specialCoords)
+        narrowPaths.append(specialCoords)
+    return narrowPaths
 
-    return paths
+def doInslandsConnect(i1, i2): # sosednja time slica vsak z le eno grupo, Grupa naj bo označena z 1
+    return np.max(i1+i2) > 1
+
+def findAllConnections(space):
+
+    spaceShape = np.shape(space)
+    newSpace, t_inf = giveSpaceNoTimeDirection(space)
+    labeled_matrix_hist, allImportantLs = labelIslands(space)
+    allConnections = []
+
+    for tt in range(spaceShape[0]):
+        slice1 = labeled_matrix_hist[tt]
+        n_islands1 = np.max(slice1)
+        slice2 = labeled_matrix_hist[(tt+1)%spaceShape[0]]
+        n_islands2 = np.max(slice2)
+        sliceConnections = []
+        for i1 in range(1, n_islands1+1):
+            for i2 in range(1, n_islands2+1):
+                if i1 not in allImportantLs[tt] or i2 not in allImportantLs[(tt+1)%spaceShape[0]]:
+                    continue
+                island1 = slice1.copy()
+                island1[slice1 != i1] = 0
+                island1[island1==i1] = 1
+                island2 = slice2.copy()
+                island2[slice2 != i2] = 0
+                island2[island2==i2] = 1
+
+                areConnected = doInslandsConnect(island1, island2)
+                if areConnected:
+                    sliceConnections.append([i1, i2])
+        allConnections.append(np.array(sliceConnections))
+    
+    return allConnections, labeled_matrix_hist
+
+class Node:
+    def __init__(self, time, id):
+        self.time = time
+        self.id = id
+        self.children = []
+
+def getStartingNodes(connections):
+    startingNodes = []
+    for c in connections[0]:
+        startingNodes.append(Node(0, c[0]))
+    return startingNodes
+
+def giveNodeChildren(node, connections):
+    if node.time == len(connections):
+        return 
+    slice = connections[node.time]
+    children = slice[:,1][slice[:,0] == node.id]
+    # print(children)
+    if len(children) == 0:
+        return
+    for c in children:
+        c_node = Node(node.time+1, c)
+        giveNodeChildren(c_node, connections)
+        node.children.append(c_node)
+
+def getPath(node, id_start, t_stop):
+    # print(node.id, node.time)
+    if node.time == t_stop and node.id == id_start:
+        return [node.id]
+    elif len(node.children) == 0:
+        return 0
+    for c in node.children:
+        path = getPath(c, id_start, t_stop)
+        if path == 0:
+            continue
+        else:
+            return [node.id] + path
+    return 0
+
+def findAllPaths2(space, onePath = True):
+    spaceShape = np.shape(space)
+    allConnections, labeled_matrix_hist = findAllConnections(space)
+
+    n_slices = len(labeled_matrix_hist)
+    startingNodes = getStartingNodes(allConnections)
+    for sn in startingNodes:
+        giveNodeChildren(sn, allConnections)
+    paths = []
+    t_stop = len(allConnections)
+    for node0 in startingNodes:
+        nekej = getPath(node0, node0.id, t_stop)
+        if nekej == 0:
+            print("Time traveling")
+            continue
+        paths.append(nekej)
+        if onePath:
+            break
+    
+    cubePathsList = []
+    for p in range(len(paths)):
+        cubeList = np.empty((0,3))
+        for t2 in range(n_slices):
+            lmh = np.ravel(labeled_matrix_hist[t2])
+            ids = np.where(lmh == (paths[p][t2]))[0]
+            ycoords = ids//spaceShape[2]
+            xcoords = ids%spaceShape[2]
+            tcoords = np.ones(len(xcoords))*t2
+            cubeList = np.append(cubeList, np.array([tcoords, ycoords, xcoords]).T, axis = 0)
+        cubePathsList.append(cubeList)
+    return cubePathsList
+
 
 
 if __name__ == "__main__":
@@ -365,21 +491,21 @@ if __name__ == "__main__":
     # space[4:6, 5:6, 5] = 0
 
     ######################### TEST 2
-    spaceShape = (7,10,9)
-    space = np.ones(spaceShape, dtype=bool)
-    space[0,1,0] = 0
-    space[0,1,1] = 0
-    space[0,0,0] = 0
-    space[1,1:9,0] = 0
-    space[2,8,0:7] = 0
-    space[3,1:9,6] = 0
-    space[3,1,1:7] = 0
-    space[4,1:9,1] = 0
-    space[4:,8,1] = 0
-    space[6,1:8,1] = 0
-    space[6,1,0] = 0
+    # spaceShape = (7,10,9)
+    # space = np.ones(spaceShape, dtype=bool)
+    # space[0,1,0] = 0
+    # space[0,1,1] = 0
+    # space[0,0,0] = 0
+    # space[1,1:9,0] = 0
+    # space[2,8,0:7] = 0
+    # space[3,1:9,6] = 0
+    # space[3,1,1:7] = 0
+    # space[4,1:9,1] = 0
+    # space[4:,8,1] = 0
+    # space[6,1:8,1] = 0
+    # space[6,1,0] = 0
 
-    space[:, 4, 7] = 0
+    # space[:, 4, 7] = 0
 
     ############################### TEST 3
     # spaceShape = (8,10,9)
@@ -403,13 +529,49 @@ if __name__ == "__main__":
     # space[3, 1, 0:7] = 0
     # space[3, 6, 0:7] = 0
 
+    from findPaths import *
+    from tree_search import *
+    dim = (8, 8)
+    endpoints = [[0, 0], [5, 0]]
+    start_pos = [0, 0]
+    start_dir = [1, 0]
+    sens_1 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
 
+    endpoints = [[0, 1], [0, 6]]
+    start_pos = [0, 5]
+    start_dir = [0, 1]
+    sens_2 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
 
+    endpoints = [[2, 2], [4, 2]]
+    start_pos = [4, 2]
+    start_dir = [-1, 0]
+    sens_3 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[2, 4], [4, 4]]
+    start_pos = [3, 4]
+    start_dir = [1, 0]
+    sens_4 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[2, 6], [6, 6]]
+    start_pos = [4, 6]
+    start_dir = [1, 0]
+    sens_5 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    endpoints = [[6, 0], [6, 4]]
+    start_pos = [6, 3]
+    start_dir = [0, -1]
+    sens_6 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+
+    sensors = [sens_1, sens_2, sens_3, sens_4, sens_5, sens_6]
+    period = smallest_common_multiple([sensor.timePeriod for sensor in sensors])
+    all_nodes, locs = build_node_tree(sensors, period=period, grid_size=8)
+    space = constructSpace(sensors, period, dim=8)
+    # print(space)
     # compute all paths
     paths = narrowPaths(space)
     print("Number of paths found: ", len(paths))
     # Kero pot si boš pogledal
-    pathId = 1
+    pathId = 0
     if len(paths) > 0:
         specialCoords = paths[pathId]
         visualize_space(space, specialCoords)

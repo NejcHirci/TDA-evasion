@@ -6,7 +6,7 @@ import matplotlib.colors
 from evasion import *
 
 import matplotlib
-matplotlib.use("TkAgg")
+# matplotlib.use("TkAgg")
 
 
 def sort_path(path, time_dim):
