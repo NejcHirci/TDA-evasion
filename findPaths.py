@@ -4,7 +4,7 @@ from skimage import measure
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from plotting import *
+from tree_search import *
 # Plotting stuff
 
 # function to get solid cube coordinates
@@ -70,6 +70,7 @@ def plotCubes(space):
     ax.set_ylabel('Y')
     ax.set_zlabel('X')
     ax.set_title("Whole space")
+    fig.savefig("output/test_example_space.png", dpi=300)
 
 def find_islands(matrix):
     """
@@ -537,8 +538,6 @@ if __name__ == "__main__":
     # space[3, 1, 0:7] = 0
     # space[3, 6, 0:7] = 0
 
-    # from findPaths import *
-    # from tree_search import *
     # dim = (8, 8)
     # endpoints = [[0, 0], [5, 0]]
     # start_pos = [0, 0]
@@ -574,7 +573,7 @@ if __name__ == "__main__":
     # period = smallest_common_multiple([sensor.timePeriod for sensor in sensors])
     # all_nodes, locs = build_node_tree(sensors, period=period, grid_size=8)
     # space = constructSpace(sensors, period, dim=8)
-    # print(space)
+    # print(space.shape)
     # compute all paths
     paths = narrowPaths(space)
     print("Number of paths found: ", len(paths))
@@ -582,7 +581,8 @@ if __name__ == "__main__":
     pathId = 0
     if len(paths) > 0:
         specialCoords = paths[pathId]
-        #visualize_space(space, specialCoords)
+        #visualize(locs, specialCoords, grid_size=8, fname="test_example.gif")
+        #visualize_space(space, specialCoords, fname="test_example.gif")
 
     # Prikaz poti
     # Prvi plot - najdena pot
@@ -602,10 +602,10 @@ if __name__ == "__main__":
     ax.set_xlabel('T')
     ax.set_ylabel('Y')
     ax.set_zlabel('X')
+    ax.set_aspect('equal')
     ax.set_title("Path %i"%pathId)
     plt.show()
     fig.savefig("output/test_example_path.png", dpi=300)
     # nariši celoten prostor
     plotCubes(space)
     plt.show()
-    fig.savefig("output/test_example_space.png", dpi=300)
