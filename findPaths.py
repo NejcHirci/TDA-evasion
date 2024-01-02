@@ -368,7 +368,6 @@ def narrowPaths(space, onePath = True):
     for path in range(len(cubePathsList)):
         space = np.ones((spaceShape), dtype = bool)
         for cube in cubePathsList[path]:
-            
             space[int(cube[0]), int(cube[1]), int(cube[2])] = 0
         ids, specialCoords = getAllIds4(space, True)
         narrowPaths.append(specialCoords)

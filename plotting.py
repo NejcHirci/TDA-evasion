@@ -16,10 +16,12 @@ def sort_path(path, time_dim):
         p = [p for p in path if p[0] == t]
         if t == 0:
             p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
-        else:
+        elif len(new_path) > 1 and len(p) > 1:
             last_pos = new_path[-1]
+            high_x = max(p, key=lambda x: x[1])[1]
+            high_y = max(p, key=lambda x: x[2])[2]
             # Check if last position is highest or lowest in new path
-            if last_pos[1] >= p[0][1] and last_pos[2] >= p[0][2]:
+            if last_pos[1] >= high_x and last_pos[2] >= high_y:
                 p = sorted(p, key=lambda x: (x[0], -x[1], -x[2]))
             else:
                 p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
@@ -50,7 +52,7 @@ def visualize(sensor_locs, path, grid_size=4):
         data[loc[0]][loc[1]] = ind + 2
         loc = sensor_locs[0][ind + 3]
         data[loc[0]][loc[1]] = ind + 2
-    data[path[0][2]][path[0][1]] = 1
+    data[path[0][1]][path[0][2]] = 1
 
     # Create a custom colormap for all sensors
     colors = ['white', (0, 1, 0)]
@@ -65,11 +67,13 @@ def visualize(sensor_locs, path, grid_size=4):
     time = 0
     frame = 0
 
+    print(path)
+
     def animate(i):
         nonlocal time, frame
         ax.clear()
         ax.set_title(f"Evasion {time}/{len(sensor_locs)}")
-        new_data = np.zeros(grid_size)
+        new_data = np.zeros((grid_size, grid_size))
 
         time = time % len(sensor_locs)
         for ind in range(0, len(sensor_locs[time]), 4):
@@ -83,11 +87,11 @@ def visualize(sensor_locs, path, grid_size=4):
             new_data[loc[0]][loc[1]] = ind + 2
 
         if path[frame][0] == time:
-            new_data[path[frame][2]][path[frame][1]] = 1
+            new_data[path[frame][1]][path[frame][2]] = 1
             if path[(frame + 1) % len(path)][0] != time:
                 time += 1
         else:
-            new_data[path[frame].y][path[frame].x] = 1
+            new_data[path[frame][1]][path[frame][2]] = 1
 
         cax = ax.pcolor(new_data[::-1], cmap=cmap, edgecolors='k', linewidths=1)
         frame = (frame + 1) % len(path)
@@ -149,6 +153,7 @@ def visualize_sensors(sensors, period, grid_size=4):
         return cax,
 
     anim = animation.FuncAnimation(fig, animate, frames=len(locs), interval=1000, blit=False)
+    anim.save('test.gif', writer='Pillow', fps=1)
     plt.show()
 
 
