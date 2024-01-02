@@ -499,21 +499,21 @@ if __name__ == "__main__":
     # space[4:6, 5:6, 5] = 0
 
     ######################### TEST 2
-    # spaceShape = (7,10,9)
-    # space = np.ones(spaceShape, dtype=bool)
-    # space[0,1,0] = 0
-    # space[0,1,1] = 0
-    # space[0,0,0] = 0
-    # space[1,1:9,0] = 0
-    # space[2,8,0:7] = 0
-    # space[3,1:9,6] = 0
-    # space[3,1,1:7] = 0
-    # space[4,1:9,1] = 0
-    # space[4:,8,1] = 0
-    # space[6,1:8,1] = 0
-    # space[6,1,0] = 0
+    spaceShape = (7,10,9)
+    space = np.ones(spaceShape, dtype=bool)
+    space[0,1,0] = 0
+    space[0,1,1] = 0
+    space[0,0,0] = 0
+    space[1,1:9,0] = 0
+    space[2,8,0:7] = 0
+    space[3,1:9,6] = 0
+    space[3,1,1:7] = 0
+    space[4,1:9,1] = 0
+    space[4:,8,1] = 0
+    space[6,1:8,1] = 0
+    space[6,1,0] = 0
 
-    # space[:, 4, 7] = 0
+    space[:, 4, 7] = 0
 
     ############################### TEST 3
     # spaceShape = (8,10,9)
@@ -537,43 +537,43 @@ if __name__ == "__main__":
     # space[3, 1, 0:7] = 0
     # space[3, 6, 0:7] = 0
 
-    from findPaths import *
-    from tree_search import *
-    dim = (8, 8)
-    endpoints = [[0, 0], [5, 0]]
-    start_pos = [0, 0]
-    start_dir = [1, 0]
-    sens_1 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
-
-    endpoints = [[0, 1], [0, 6]]
-    start_pos = [0, 5]
-    start_dir = [0, 1]
-    sens_2 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
-
-    endpoints = [[2, 2], [4, 2]]
-    start_pos = [4, 2]
-    start_dir = [-1, 0]
-    sens_3 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
-
-    endpoints = [[2, 4], [4, 4]]
-    start_pos = [3, 4]
-    start_dir = [1, 0]
-    sens_4 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
-
-    endpoints = [[2, 6], [6, 6]]
-    start_pos = [4, 6]
-    start_dir = [1, 0]
-    sens_5 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
-
-    endpoints = [[6, 0], [6, 4]]
-    start_pos = [6, 3]
-    start_dir = [0, -1]
-    sens_6 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
-
-    sensors = [sens_1, sens_2, sens_3, sens_4, sens_5, sens_6]
-    period = smallest_common_multiple([sensor.timePeriod for sensor in sensors])
-    all_nodes, locs = build_node_tree(sensors, period=period, grid_size=8)
-    space = constructSpace(sensors, period, dim=8)
+    # from findPaths import *
+    # from tree_search import *
+    # dim = (8, 8)
+    # endpoints = [[0, 0], [5, 0]]
+    # start_pos = [0, 0]
+    # start_dir = [1, 0]
+    # sens_1 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+    #
+    # endpoints = [[0, 1], [0, 6]]
+    # start_pos = [0, 5]
+    # start_dir = [0, 1]
+    # sens_2 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+    #
+    # endpoints = [[2, 2], [4, 2]]
+    # start_pos = [4, 2]
+    # start_dir = [-1, 0]
+    # sens_3 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+    #
+    # endpoints = [[2, 4], [4, 4]]
+    # start_pos = [3, 4]
+    # start_dir = [1, 0]
+    # sens_4 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+    #
+    # endpoints = [[2, 6], [6, 6]]
+    # start_pos = [4, 6]
+    # start_dir = [1, 0]
+    # sens_5 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+    #
+    # endpoints = [[6, 0], [6, 4]]
+    # start_pos = [6, 3]
+    # start_dir = [0, -1]
+    # sens_6 = DirectionalSensor(dim, endpoints, start_pos, start_dir)
+    #
+    # sensors = [sens_1, sens_2, sens_3, sens_4, sens_5, sens_6]
+    # period = smallest_common_multiple([sensor.timePeriod for sensor in sensors])
+    # all_nodes, locs = build_node_tree(sensors, period=period, grid_size=8)
+    # space = constructSpace(sensors, period, dim=8)
     # print(space)
     # compute all paths
     paths = narrowPaths(space)
@@ -582,7 +582,7 @@ if __name__ == "__main__":
     pathId = 0
     if len(paths) > 0:
         specialCoords = paths[pathId]
-        visualize_space(space, specialCoords)
+        #visualize_space(space, specialCoords)
 
     # Prikaz poti
     # Prvi plot - najdena pot
@@ -604,6 +604,8 @@ if __name__ == "__main__":
     ax.set_zlabel('X')
     ax.set_title("Path %i"%pathId)
     plt.show()
+    fig.savefig("output/test_example_path.png", dpi=300)
     # nariši celoten prostor
     plotCubes(space)
     plt.show()
+    fig.savefig("output/test_example_space.png", dpi=300)

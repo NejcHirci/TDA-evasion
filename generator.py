@@ -1,3 +1,5 @@
+import numpy as np
+
 from evasion import *
 
 from plotting import visualize_sensors
@@ -49,21 +51,20 @@ def naive_generator(grid_size):
         dir = np.array(dir)
 
         # Choose endpoint
-        if direction == 0:  # UP
-            endY = np.where(~coverage[:start[0]+1, :])[0][0]
-            endpoint = [endY, start[1]]
-        elif direction == 1:  # DOWN
-            endY = np.where(~coverage[start[0]:, :])[0][-1]
-            endpoint = [endY, start[1]]
-        elif direction == 2:  # LEFT
-            endX = np.where(~coverage[:, :start[1]+1])[1][0]
-            endpoint = [start[0], endX]
-        else:  # RIGHT
-            endX = np.where(~coverage[:, start[1]:])[1][-1]
-            endpoint = [start[0], endX]
+        endpoint = start
+        if direction == 0: # Up
+            endY = np.argwhere(~coverage[:start[0], start[1]])[0][0]
+            endpoint = np.array([endY, start[1]])
+        elif direction == 1: # Down
+            endY = np.argwhere(~coverage[start[0]:, start[1]])[-1][0]
+            endpoint = np.array([start[0] + endY, start[1]])
+        elif direction == 2: # Left
+            endX = np.argwhere(~coverage[start[0], :start[1]])[0][0]
+            endpoint = np.array([start[0], endX])
+        else: # Right
+            endX = np.argwhere(~coverage[start[0], start[1]:])[-1][0]
+            endpoint = np.array([start[0], start[1] + endX])
 
-        # Select a random point on the line between start and endpoint
-        endpoint = np.array(endpoint)
         endpoint[0] = np.clip(endpoint[0], 0, grid_size - 2)
         endpoint[1] = np.clip(endpoint[1], 0, grid_size - 2)
 
@@ -93,4 +94,5 @@ def naive_generator(grid_size):
 if __name__ == "__main__":
     size = 8
     sensors, p = naive_generator(size)
+    print(sensors)
     visualize_sensors(sensors, p, size)

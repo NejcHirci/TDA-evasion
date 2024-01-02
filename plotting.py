@@ -16,7 +16,7 @@ def sort_path(path, time_dim):
         p = [p for p in path if p[0] == t]
         if t == 0:
             p = sorted(p, key=lambda x: (x[0], x[1], x[2]))
-        elif len(new_path) > 1 and len(p) > 1:
+        elif len(new_path) > 0 and len(p) > 1:
             last_pos = new_path[-1]
             high_x = max(p, key=lambda x: x[1])[1]
             high_y = max(p, key=lambda x: x[2])[2]
@@ -29,7 +29,7 @@ def sort_path(path, time_dim):
     return new_path
 
 
-def visualize(sensor_locs, path, grid_size=4):
+def visualize(sensor_locs, path, grid_size=4, fname='evasion.gif'):
     """
     Visualize the path of the intruder through the grid.
     path: list of tuples (time, x, y)
@@ -98,10 +98,10 @@ def visualize(sensor_locs, path, grid_size=4):
         return cax,
 
     anim = animation.FuncAnimation(fig, animate, frames=len(path), interval=1000, blit=False)
-    anim.save('evasion.gif', writer='imagemagick', fps=1)
+    anim.save(f'output/{fname}', writer='Pillow', fps=2)
 
 
-def visualize_sensors(sensors, period, grid_size=4):
+def visualize_sensors(sensors, period, grid_size=4, fname="sensors.gif"):
     """
     Visualize only the sensor movements.
     sensors: list of sensors
@@ -153,11 +153,11 @@ def visualize_sensors(sensors, period, grid_size=4):
         return cax,
 
     anim = animation.FuncAnimation(fig, animate, frames=len(locs), interval=1000, blit=False)
-    anim.save('test.gif', writer='Pillow', fps=1)
+    anim.save(f'output/{fname}', writer='Pillow', fps=2)
     plt.show()
 
 
-def visualize_space(space, path):
+def visualize_space(space, path, fname='space.gif'):
     """Visualization for visualizing from space.
     space: ndarray of shape (time, x, y) of type bool if 0 no sensor
     """
@@ -174,15 +174,13 @@ def visualize_space(space, path):
     ax.set_aspect('equal')
 
     # Create a custom colormap for all sensors
-    colors = ['red', 'white', 'green']
+    colors = ['white', 'red', 'green']
 
     cmap = matplotlib.colors.ListedColormap(colors)
     cax = ax.pcolor(space[0], cmap=cmap, edgecolors='k', linewidths=1)
 
     time = 0
     frame = 0
-
-    print(space)
 
     def animate(i):
         nonlocal time, frame
@@ -207,5 +205,5 @@ def visualize_space(space, path):
 
     anim = animation.FuncAnimation(fig, animate, frames=frameNum, interval=1000, blit=False)
     plt.show()
-    anim.save('what.gif', writer='imagemagick', fps=1)
+    anim.save(f'output/{fname}', writer='Pillow', fps=2)
 
